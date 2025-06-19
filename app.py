@@ -10,7 +10,7 @@ if "selected_color" not in st.session_state:
     st.session_state.selected_color = "#D88DC6"
 
 # 从 URL 获取颜色值（用于 js postMessage 传回）
-color_js = st.experimental_get_query_params().get("color", [None])[0]
+color_js = st.query_params.get("color", None)
 if color_js and re.match(r"^#[0-9A-Fa-f]{6}$", color_js):
     st.session_state.selected_color = color_js.upper()
 
