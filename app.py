@@ -5,7 +5,6 @@ import re
 
 st.set_page_config(page_title="色轮选色器", layout="centered")
 
-# 从 URL 查询参数中读取颜色，格式检查
 def get_color_from_query():
     color = st.query_params.get("color", [None])[0]
     if color and re.match(r"^#[0-9A-Fa-f]{6}$", color):
@@ -25,16 +24,19 @@ st.markdown("""
 </p>
 """, unsafe_allow_html=True)
 
-# 集成可交互 iro.js 色轮，拖动改变颜色，刷新并更新 URL
 components.html(f"""
-<div id="picker" style="margin: auto;"></div>
-<p style="text-align:center; font-size:16px; margin-top:10px;">当前颜色: <span id="current-color">{color}</span></p>
+<div style='width:300px; margin:0 auto; padding:10px; background:#f8f8f8; border:1px solid #ddd; border-radius:8px;'>
+  <div id='picker'></div>
+  <p style='text-align:center; font-size:16px; margin-top:10px;'>
+    当前颜色: <span id='current-color'>{color}</span>
+  </p>
+</div>
 
-<script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5"></script>
+<script src='https://cdn.jsdelivr.net/npm/@jaames/iro@5'></script>
 <script>
-  var colorPicker = new iro.ColorPicker("#picker", {{
+  var colorPicker = new iro.ColorPicker('#picker', {{
     width: 280,
-    color: "{color}",
+    color: '{color}',
     layout: [
       {{ component: iro.ui.Wheel }},
       {{ component: iro.ui.Slider, options: {{ sliderType: 'value' }} }}
@@ -43,15 +45,15 @@ components.html(f"""
 
   colorPicker.on('color:change', function(color) {{
     const hex = color.hexString.toUpperCase();
-    document.getElementById("current-color").textContent = hex;
+    document.getElementById('current-color').textContent = hex;
     const url = new URL(window.location);
-    url.searchParams.set("color", hex);
+    url.searchParams.set('color', hex);
     window.location.href = url.toString();
   }});
 </script>
-""", height=380)
+""", height=400)
 
-# 工具函数
+# --- 以下是颜色处理代码 ---
 def hex_to_rgb(hex_color):
     hex_color = hex_color.lstrip('#')
     return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
@@ -83,40 +85,37 @@ adjusted_color = adjust_brightness(st.session_state.selected_color, brightness)
 decimal_value = hex_to_decimal(adjusted_color)
 similar_colors = generate_similar_colors(adjusted_color)
 
-# 主色展示区域
 st.markdown(f"""
-<div style="display:flex; justify-content:center; align-items:center; gap:15px; margin-top:15px;">
-    <div style="width:50px; height:50px; border-radius:8px; background:{adjusted_color}; box-shadow:0 0 5px rgba(0,0,0,0.15);"></div>
+<div style='display:flex; justify-content:center; align-items:center; gap:15px; margin-top:15px;'>
+    <div style='width:50px; height:50px; border-radius:8px; background:{adjusted_color}; box-shadow:0 0 5px rgba(0,0,0,0.15);'></div>
     <div>
-        <div style="font-size:22px; font-weight:bold; color:#333;">{adjusted_color}</div>
-        <div style="color:#666; margin-top:3px; text-align:center;">十进制值：<code style="font-size:18px;">{decimal_value}</code></div>
+        <div style='font-size:22px; font-weight:bold; color:#333;'>{adjusted_color}</div>
+        <div style='color:#666; margin-top:3px; text-align:center;'>十进制值：<code style='font-size:18px;'>{decimal_value}</code></div>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-# 相近颜色展示
 st.markdown("### 相近颜色")
-st.markdown('<div style="display:flex; justify-content:center; gap:12px; margin-top:10px;">', unsafe_allow_html=True)
+st.markdown("<div style='display:flex; justify-content:center; gap:12px; margin-top:10px;'>", unsafe_allow_html=True)
 for c in similar_colors:
     r, g, b = hex_to_rgb(c)
     brightness_check = (r*299 + g*587 + b*114) / 1000
     text_color = "#000" if brightness_check > 140 else "#fff"
     st.markdown(f"""
-    <div style="
+    <div style='
         background:{c};
         width:80px; height:80px; border-radius:10px;
         display:flex; justify-content:center; align-items:center;
         font-weight:bold; color:{text_color}; font-size:16px;
         box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-        user-select:none;">
+        user-select:none;'>
         {c}
     </div>
     """, unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
 
-# 说明文字
 st.markdown("""
-<div style="max-width:600px; margin:40px auto 0; font-size:18px; line-height:1.5; color:#555; text-align:center;">
+<div style='max-width:600px; margin:40px auto 0; font-size:18px; line-height:1.5; color:#555; text-align:center;'>
     <b>提示：</b>拖动上方色轮时，页面自动刷新同步当前颜色。明度调整滑块可调节显示色调。<br><br>
 </div>
 """, unsafe_allow_html=True)
