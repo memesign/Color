@@ -3,11 +3,10 @@ import colorsys
 
 st.set_page_config(page_title="色轮选色器", layout="wide")
 
-st.title("色轮选色器")
-
+st.title("🎨 色轮选色器")
 st.markdown("使用色轮选择和谐的颜色调色板，并输出对应色值。")
 
-col1, col2 = st.columns([1, 2])
+col1, col2 = st.columns([2, 1])
 
 def hex_to_rgb(hex_color):
     hex_color = hex_color.lstrip('#')
@@ -41,28 +40,47 @@ def adjust_brightness(hex_color, brightness_factor):
 with col1:
     selected_color = st.color_picker("主色", "#D88DC6")
 
-    brightness = st.slider("明度调整", 0.1, 1.0, 1.0, 0.05)
-    adjusted_color = adjust_brightness(selected_color, brightness)
+    brightness = st.slider("明度调整", 0.1, 1.0, 1.0, 0.01)
 
+    adjusted_color = adjust_brightness(selected_color, brightness)
     decimal_value = hex_to_decimal(adjusted_color)
     similar_colors = generate_similar_colors(adjusted_color)
 
+    # 主色显示区域
     st.markdown(f"""
-        <div style='display:flex;align-items:center;margin-top:10px'>
-            <div style='width:30px;height:30px;border-radius:50%;background:{adjusted_color};margin-right:10px'></div>
-            <span style='font-size:20px;font-weight:bold'>{adjusted_color.upper()}</span>
+    <div style="display:flex; align-items:center; gap:15px; margin-top:15px;">
+        <div style="width:50px; height:50px; border-radius:8px; background:{adjusted_color}; box-shadow:0 0 5px rgba(0,0,0,0.15);"></div>
+        <div>
+            <div style="font-size:22px; font-weight:bold; color:#333;">{adjusted_color.upper()}</div>
+            <div style="color:#666; margin-top:3px;">十进制值：<code style="font-size:18px;">{decimal_value}</code></div>
         </div>
-        <p style='margin-top:5px'>十进制值：<code>{decimal_value}</code></p>
+    </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("##### 相近颜色")
+    st.markdown("### 相近颜色")
+    # 横向排列颜色块
+    st.markdown('<div style="display:flex; gap:12px; margin-top:10px;">', unsafe_allow_html=True)
     for c in similar_colors:
+        # 判断文字颜色深浅（亮色背景用深色字体，暗色背景用白色字体）
+        r, g, b = hex_to_rgb(c)
+        brightness_check = (r*299 + g*587 + b*114) / 1000
+        text_color = "#000" if brightness_check > 140 else "#fff"
         st.markdown(f"""
-        <div style='display:inline-block;width:80px;height:80px;background:{c};border-radius:6px;
-                    margin:5px;text-align:center;line-height:80px;font-weight:bold;color:#333;
-                    box-shadow:0 0 3px rgba(0,0,0,0.1)'>{c}</div>
+        <div style="
+            background:{c};
+            width:80px; height:80px; border-radius:10px;
+            display:flex; justify-content:center; align-items:center;
+            font-weight:bold; color:{text_color}; font-size:16px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            user-select:none;">
+            {c}
+        </div>
         """, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 with col2:
-    st.markdown("##### 选择主色（或使用左侧滑块调整明度）")
-    st.write("（Streamlit 暂不支持真实色轮，但可以拓展）")
+    st.markdown("<div style='padding:20px; font-size:18px; line-height:1.5; color:#555;'>"
+                "<b>选择主色：</b>使用左侧的色彩选择器挑选颜色。<br>"
+                "<b>明度调整：</b>通过滑块调整颜色的明度，帮助您找到更合适的色调。<br><br>"
+                "目前演示版本暂不支持真实色轮交互，后续可以扩展。"
+                "</div>", unsafe_allow_html=True)
