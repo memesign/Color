@@ -11,12 +11,13 @@ def get_color_from_query():
         return color.upper()
     return None
 
-color_in_url = get_color_from_query()
-
+# 初始颜色或默认色
 if "selected_color" not in st.session_state:
     st.session_state.selected_color = "#D88DC6"
 
-# 如果URL参数颜色和session颜色不一样，更新并刷新页面
+color_in_url = get_color_from_query()
+
+# 如果 URL 中颜色变化，更新状态并刷新页面
 if color_in_url and color_in_url != st.session_state.selected_color:
     st.session_state.selected_color = color_in_url
     st.experimental_rerun()
@@ -54,6 +55,7 @@ components.html(f"""
     document.getElementById('current-color').textContent = hex;
     const url = new URL(window.location);
     url.searchParams.set('color', hex);
+    // 用replaceState更新地址栏，但不刷新页面
     window.history.replaceState(null, null, url.toString());
   }});
 </script>
@@ -122,6 +124,6 @@ st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("""
 <div style='max-width:600px; margin:40px auto 0; font-size:18px; line-height:1.5; color:#555; text-align:center;'>
-    <b>提示：</b>拖动色轮，颜色同步到地址栏，刷新页面更新显示。明度滑块调节明度。
+    <b>提示：</b>拖动色轮，颜色同步到地址栏，页面刷新后内容联动更新。明度滑块可调节明度。
 </div>
 """, unsafe_allow_html=True)
