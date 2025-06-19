@@ -7,7 +7,7 @@ st.set_page_config(page_title="色轮选色器", layout="centered")
 
 # 获取URL参数颜色，格式验证
 def get_color_from_query():
-    color = st.experimental_get_query_params().get("color", [None])[0]
+    color = st.query_params.get("color", [None])[0]
     if color and re.match(r"^#[0-9A-Fa-f]{6}$", color):
         return color.upper()
     return None
