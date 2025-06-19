@@ -89,6 +89,6 @@ with st.container():
     <div style="max-width:600px; margin:40px auto 0; font-size:18px; line-height:1.5; color:#555; text-align:center;">
         <b>选择主色：</b>使用上方的色彩选择器挑选颜色。<br>
         <b>明度调整：</b>通过滑块调整颜色的明度，帮助您找到更合适的色调。<br><br>
-        目前演示版本暂不支持真实色轮交互，后续可以扩展。
+
     </div>
     """, unsafe_allow_html=True)
