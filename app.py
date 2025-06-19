@@ -5,9 +5,8 @@ import re
 
 st.set_page_config(page_title="色轮选色器", layout="centered")
 
-# 读取URL参数颜色
 def get_color_from_query():
-    color = st.experimental_get_query_params().get("color", [None])[0]
+    color = st.query_params.get("color", [None])[0]
     if color and re.match(r"^#[0-9A-Fa-f]{6}$", color):
         return color.upper()
     return None
@@ -17,7 +16,7 @@ color_in_url = get_color_from_query()
 if "selected_color" not in st.session_state:
     st.session_state.selected_color = "#D88DC6"
 
-# 如果URL参数和session颜色不一致，说明颜色变了，更新session并刷新
+# 如果URL参数颜色和session颜色不一样，更新并刷新页面
 if color_in_url and color_in_url != st.session_state.selected_color:
     st.session_state.selected_color = color_in_url
     st.experimental_rerun()
@@ -123,6 +122,6 @@ st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("""
 <div style='max-width:600px; margin:40px auto 0; font-size:18px; line-height:1.5; color:#555; text-align:center;'>
-    <b>提示：</b>拖动色轮，颜色会同步到地址栏，刷新页面更新显示。明度滑块可调节明度。
+    <b>提示：</b>拖动色轮，颜色同步到地址栏，刷新页面更新显示。明度滑块调节明度。
 </div>
 """, unsafe_allow_html=True)
