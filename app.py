@@ -8,42 +8,48 @@ st.set_page_config(page_title="色轮选色器", layout="centered")
 if "selected_color" not in st.session_state:
     st.session_state.selected_color = "#D88DC6"
 
-# 嵌入 Iro.js 色轮，并通过 JS Bridge 与 Streamlit 交互
-selected_color = st.empty()
+# 页面头部
+st.markdown("""
+    <h1 style="text-align:center; color:#2C3E50;">
+        🎨 色轮选色器
+    </h1>
+    <p style="text-align:center; font-size:18px; color:#7F8C8D;">
+        使用可视色轮选择颜色，并进行明度调整与色值分析。
+    </p>
+""", unsafe_allow_html=True)
 
-components.html("""
+# 嵌入 Iro.js 色轮，内部处理选色，不刷新页面
+components.html(f"""
 <div id="pickerContainer" style="display:flex; justify-content:center;"></div>
-<p style="text-align:center; font-size:16px;">选中颜色: <span id="hexVal">#D88DC6</span></p>
+<p style="text-align:center; font-size:16px;">选中颜色: <span id="hexVal">{st.session_state.selected_color}</span></p>
 
 <script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5"></script>
 <script>
-  const picker = new iro.ColorPicker("#pickerContainer", {
+  const picker = new iro.ColorPicker("#pickerContainer", {{
     width: 260,
-    color: "#D88DC6",
+    color: "{st.session_state.selected_color}",
     layout: [
-      { component: iro.ui.Wheel },
-      { component: iro.ui.Slider, options: { sliderType: 'value' } }
+      {{ component: iro.ui.Wheel }},
+      {{ component: iro.ui.Slider, options: {{ sliderType: 'value' }} }}
     ]
-  });
+  }});
 
-  function sendColor(color) {
+  picker.on("color:change", function(color) {{
     const hex = color.hexString.toUpperCase();
-    const streamlitEvent = new CustomEvent("streamlit:componentReady", {
-      detail: { message: hex }
-    });
-    window.parent.dispatchEvent(streamlitEvent);
     document.getElementById("hexVal").textContent = hex;
-  }
-
-  picker.on("color:change", sendColor);
+    const url = new URL(window.location);
+    url.searchParams.set("color", hex);
+    window.location.href = url.toString();  // 触发页面刷新，保持最新颜色
+  }});
 </script>
 """, height=330)
 
-# 提示：当前 Streamlit 无法直接接收 JS 消息，我们临时用一个文本输入模拟接收颜色
-color_input = st.text_input("当前选中颜色（请手动复制上方色值）", st.session_state.selected_color)
-st.session_state.selected_color = color_input
+# 从 URL 获取颜色并更新状态
+color_js = st.query_params.get("color", None)
+if color_js:
+    st.session_state.selected_color = color_js
 
-# --- 工具函数 ---
+# 工具函数
 def hex_to_rgb(hex_color):
     hex_color = hex_color.lstrip('#')
     return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
@@ -70,13 +76,13 @@ def adjust_brightness(hex_color, brightness_factor):
     r_new, g_new, b_new = colorsys.hsv_to_rgb(h, s, v)
     return '#{:02X}{:02X}{:02X}'.format(int(r_new * 255), int(g_new * 255), int(b_new * 255))
 
-# --- 调色板展示 ---
+# 明度调节
 brightness = st.slider("明度调整", 0.1, 1.0, 1.0, 0.01)
-adjusted_color = adjust_brightness(color_input, brightness)
+adjusted_color = adjust_brightness(st.session_state.selected_color, brightness)
 decimal_value = hex_to_decimal(adjusted_color)
 similar_colors = generate_similar_colors(adjusted_color)
 
-# 显示主色
+# 主色显示
 st.markdown(f"""
 <div style="display:flex; justify-content:center; align-items:center; gap:15px; margin-top:15px;">
     <div style="width:50px; height:50px; border-radius:8px; background:{adjusted_color}; box-shadow:0 0 5px rgba(0,0,0,0.15);"></div>
@@ -87,7 +93,7 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# 显示相近颜色
+# 相近色展示
 st.markdown("### 相近颜色")
 st.markdown('<div style="display:flex; justify-content:center; gap:12px; margin-top:10px;">', unsafe_allow_html=True)
 for c in similar_colors:
@@ -106,3 +112,11 @@ for c in similar_colors:
     </div>
     """, unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
+
+# 底部说明
+st.markdown("""
+    <div style="max-width:600px; margin:40px auto 0; font-size:18px; line-height:1.5; color:#555; text-align:center;">
+        <b>提示：</b>点击上方色轮可直接选择颜色，手动复制显示的 HEX 值粘贴至下方输入框以进行调色与分析。<br>
+        当前方案不刷新页面，提升交互体验。<br><br>
+    </div>
+""", unsafe_allow_html=True)
