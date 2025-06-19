@@ -5,33 +5,32 @@ import re
 
 st.set_page_config(page_title="色轮选色器", layout="centered")
 
+# 读取URL参数颜色
 def get_color_from_query():
-    color = st.query_params.get("color", [None])[0]
+    color = st.experimental_get_query_params().get("color", [None])[0]
     if color and re.match(r"^#[0-9A-Fa-f]{6}$", color):
         return color.upper()
     return None
 
-# 读取URL参数里的颜色
 color_in_url = get_color_from_query()
 
-# 优先用URL参数颜色覆盖session状态
-if color_in_url:
+if "selected_color" not in st.session_state:
+    st.session_state.selected_color = "#D88DC6"
+
+# 如果URL参数和session颜色不一致，说明颜色变了，更新session并刷新
+if color_in_url and color_in_url != st.session_state.selected_color:
     st.session_state.selected_color = color_in_url
-elif "selected_color" not in st.session_state:
-    st.session_state.selected_color = "#D88DC6"  # 默认色
+    st.experimental_rerun()
 
 color = st.session_state.selected_color
 
 st.markdown("""
-<h1 style="text-align:center; color:#2C3E50;">
-    🎨 色轮选色器（无刷新联动版）
-</h1>
+<h1 style="text-align:center; color:#2C3E50;">🎨 色轮选色器</h1>
 <p style="text-align:center; font-size:18px; color:#7F8C8D;">
-    拖动色轮选择颜色，明度调节和相近颜色实时联动。
+拖动色轮选择颜色，页面刷新同步当前选色。
 </p>
 """, unsafe_allow_html=True)
 
-# 色轮 HTML+JS，色变时通过 postMessage 通知 Streamlit 更新 URL 参数（不会刷新页面）
 components.html(f"""
 <div style='width:300px; margin:0 auto; padding:10px; background:#f8f8f8; border:1px solid #ddd; border-radius:8px;'>
   <div id='picker'></div>
@@ -54,16 +53,13 @@ components.html(f"""
   colorPicker.on('color:change', function(color) {{
     const hex = color.hexString.toUpperCase();
     document.getElementById('current-color').textContent = hex;
-    window.parent.postMessage({{
-      isStreamlitMessage: true, 
-      type: 'setQueryParams', 
-      queryParams: {{color: hex}}
-    }}, '*');
+    const url = new URL(window.location);
+    url.searchParams.set('color', hex);
+    window.history.replaceState(null, null, url.toString());
   }});
 </script>
 """, height=400)
 
-# 明度滑块：基于当前颜色计算明度变化色
 brightness = st.slider("明度调整", 0.1, 1.0, 1.0, 0.01)
 
 def hex_to_rgb(hex_color):
@@ -96,7 +92,6 @@ adjusted_color = adjust_brightness(color, brightness)
 decimal_value = hex_to_decimal(adjusted_color)
 similar_colors = generate_similar_colors(adjusted_color)
 
-# 主色展示
 st.markdown(f"""
 <div style='display:flex; justify-content:center; align-items:center; gap:15px; margin-top:15px;'>
     <div style='width:50px; height:50px; border-radius:8px; background:{adjusted_color}; box-shadow:0 0 5px rgba(0,0,0,0.15);'></div>
@@ -107,7 +102,6 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# 相近颜色
 st.markdown("### 相近颜色")
 st.markdown("<div style='display:flex; justify-content:center; gap:12px; margin-top:10px;'>", unsafe_allow_html=True)
 for c in similar_colors:
@@ -129,6 +123,6 @@ st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("""
 <div style='max-width:600px; margin:40px auto 0; font-size:18px; line-height:1.5; color:#555; text-align:center;'>
-    <b>提示：</b>拖动色轮时颜色实时更新，明度滑块和相近颜色随之变化。<br><br>
+    <b>提示：</b>拖动色轮，颜色会同步到地址栏，刷新页面更新显示。明度滑块可调节明度。
 </div>
 """, unsafe_allow_html=True)
