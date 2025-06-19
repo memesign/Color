@@ -1,94 +1,56 @@
 import streamlit as st
+import numpy as np
+import matplotlib.pyplot as plt
 import colorsys
 
-st.set_page_config(page_title="色轮选色器", layout="centered")
+st.set_page_config(page_title="二维H-S色彩选择器", layout="centered")
 
-st.markdown(
-    """
-    <h1 style="text-align:center; color:#2C3E50; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-        🎨 色轮选色器
-    </h1>
-    <p style="text-align:center; font-size:18px; color:#7F8C8D; margin-bottom:40px;">
-        使用色轮选择和谐的颜色调色板，并输出对应色值。
-    </p>
-    """,
-    unsafe_allow_html=True
-)
+st.title("🎨 二维 H-S 色彩选择器 + 明度调节")
 
-def hex_to_rgb(hex_color):
-    hex_color = hex_color.lstrip('#')
-    return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+# 画一个H-S色彩平面图
+h_range = 360
+s_range = 100
+img = np.zeros((s_range, h_range, 3))
 
-def hex_to_decimal(hex_color):
-    r, g, b = hex_to_rgb(hex_color)
-    return r * 256**2 + g * 256 + b
+for i in range(s_range):      # S从100%到0%
+    for j in range(h_range):  # H从0到360度
+        h = j / 360
+        s = 1 - i / 100  # 注意反转坐标轴，顶部饱和度高
+        v = 1.0         # 明度先设1
+        r, g, b = colorsys.hsv_to_rgb(h, s, v)
+        img[i, j] = [r, g, b]
 
-def generate_similar_colors(hex_color):
-    r, g, b = hex_to_rgb(hex_color)
-    variants = []
-    for i in [-20, 0, 20]:
-        r2 = min(255, max(0, r + i))
-        g2 = min(255, max(0, g + i))
-        b2 = min(255, max(0, b + i))
-        variants.append('#{:02X}{:02X}{:02X}'.format(r2, g2, b2))
-    return variants
+fig, ax = plt.subplots(figsize=(9, 3))
+ax.imshow(img, aspect='auto', origin='lower')
+ax.set_xticks([0, 60, 120, 180, 240, 300, 360])
+ax.set_xticklabels(['0°', '60°', '120°', '180°', '240°', '300°', '360°'])
+ax.set_yticks([0, 25, 50, 75, 100])
+ax.set_yticklabels(['100%', '75%', '50%', '25%', '0%'])
+ax.set_xlabel("色相 (Hue)")
+ax.set_ylabel("饱和度 (Saturation)")
+ax.set_title("点击色块选择色相和饱和度")
 
-def adjust_brightness(hex_color, brightness_factor):
-    r, g, b = hex_to_rgb(hex_color)
-    r_f, g_f, b_f = r / 255, g / 255, b / 255
-    h, s, v = colorsys.rgb_to_hsv(r_f, g_f, b_f)
-    v = max(0, min(v * brightness_factor, 1))
-    r_new, g_new, b_new = colorsys.hsv_to_rgb(h, s, v)
-    r_new_i = int(r_new * 255)
-    g_new_i = int(g_new * 255)
-    b_new_i = int(b_new * 255)
-    return '#{:02X}{:02X}{:02X}'.format(r_new_i, g_new_i, b_new_i)
+st.pyplot(fig)
 
-with st.container():
-    selected_color = st.color_picker("主色", "#D88DC6", key="color_picker")
+# 用户输入色相和饱和度
+h = st.slider("色相 H (0°~360°)", 0, 360, 300)
+s = st.slider("饱和度 S (0%~100%)", 0, 100, 70)
 
-    brightness = st.slider("明度调整", 0.1, 1.0, 1.0, 0.01)
+v = st.slider("明度 V (0%~100%)", 0, 100, 90)
 
-    adjusted_color = adjust_brightness(selected_color, brightness)
-    decimal_value = hex_to_decimal(adjusted_color)
-    similar_colors = generate_similar_colors(adjusted_color)
+# 计算当前颜色
+h_norm = h / 360
+s_norm = s / 100
+v_norm = v / 100
+r, g, b = colorsys.hsv_to_rgb(h_norm, s_norm, v_norm)
+hex_color = '#{:02X}{:02X}{:02X}'.format(int(r*255), int(g*255), int(b*255))
 
-    # 主色显示区域，居中
-    st.markdown(f"""
-    <div style="display:flex; justify-content:center; align-items:center; gap:15px; margin-top:15px;">
-        <div style="width:50px; height:50px; border-radius:8px; background:{adjusted_color}; box-shadow:0 0 5px rgba(0,0,0,0.15);"></div>
-        <div>
-            <div style="font-size:22px; font-weight:bold; color:#333;">{adjusted_color.upper()}</div>
-            <div style="color:#666; margin-top:3px; text-align:center;">十进制值：<code style="font-size:18px;">{decimal_value}</code></div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+st.markdown(f"""
+<div style="display:flex; justify-content:center; align-items:center; margin-top:20px; gap:15px;">
+    <div style="width:80px; height:80px; border-radius:12px; background:{hex_color}; box-shadow: 0 0 10px rgba(0,0,0,0.2);"></div>
+    <div style="font-size:24px; font-weight:bold; color:#333;">{hex_color}</div>
+</div>
+""", unsafe_allow_html=True)
 
-    # 相近颜色横向居中排列
-    st.markdown("### 相近颜色")
-    st.markdown('<div style="display:flex; justify-content:center; gap:12px; margin-top:10px;">', unsafe_allow_html=True)
-    for c in similar_colors:
-        r, g, b = hex_to_rgb(c)
-        brightness_check = (r*299 + g*587 + b*114) / 1000
-        text_color = "#000" if brightness_check > 140 else "#fff"
-        st.markdown(f"""
-        <div style="
-            background:{c};
-            width:80px; height:80px; border-radius:10px;
-            display:flex; justify-content:center; align-items:center;
-            font-weight:bold; color:{text_color}; font-size:16px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-            user-select:none;">
-            {c}
-        </div>
-        """, unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+st.write("你现在选择的颜色，明度可单独调整，灵活控制色调和亮度。")
 
-    # 提示文字，整体居中且宽度限制
-    st.markdown("""
-    <div style="max-width:600px; margin:40px auto 0; font-size:18px; line-height:1.5; color:#555; text-align:center;">
-        <b>选择主色：</b>使用上方的色彩选择器挑选颜色。<br>
-        <b>明度调整：</b>通过滑块调整颜色的明度，帮助您找到更合适的色调。<br><br>
-
-    </div>
-    """, unsafe_allow_html=True)
