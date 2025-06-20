@@ -25,7 +25,7 @@ def hex_to_rgb(hex_color: str) -> Tuple[int, int, int]:
 @st.cache_data
 def adjust_brightness(hex_color: str, brightness: float) -> str:
     """调整颜色明度"""
-    r, g, b = [x/255 for x in hex_to_rgb(hex_color)]
+    r, g, b = [x / 255 for x in hex_to_rgb(hex_color)]
     h, s, v = colorsys.rgb_to_hsv(r, g, b)
     v = max(0, min(v * brightness, 1))
     r, g, b = colorsys.hsv_to_rgb(h, s, v)
@@ -63,7 +63,7 @@ if url_color and url_color != st.session_state.current_color:
     st.rerun()  # 强制刷新使新颜色生效
 
 # ======================
-# 色轮组件 (关键修复部分)
+# 色轮组件
 # ======================
 components.html(f"""
 <div style="width:100%; max-width:320px; margin:0 auto; padding:20px; 
@@ -85,10 +85,10 @@ components.html(f"""
     ]
   }});
 
-  // 颜色变化时更新URL并强制页面刷新
+  // ✅ 用 href 强制刷新，确保 Streamlit 能感知 URL 改变
   colorPicker.on('color:change', function(color) {{
     const hex = color.hexString.toUpperCase();
-    window.location.search = `?color=${{hex}}`;  // 直接跳转刷新
+    window.location.href = `?color=${{hex}}`;
   }});
 </script>
 """, height=420)
