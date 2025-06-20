@@ -1,241 +1,162 @@
 import streamlit as st
 import streamlit.components.v1 as components
+import colorsys
 
-st.set_page_config(page_title="ColorSelector", layout="wide")
+st.set_page_config(page_title="色轮选色器", layout="wide")
 
-components.html("""
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5"></script>
-  <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      background: #fff;
+st.title("🎨 色轮选色器（严格还原设计）")
+
+# === 色轮交互用HTML+JS生成，canvas点击返回色相和饱和度 ===
+def get_color_wheel_html():
+    html = """
+    <canvas id="colorwheel" width="250" height="250" style="cursor:pointer;border-radius:50%;"></canvas>
+    <script>
+    const canvas = document.getElementById('colorwheel');
+    const ctx = canvas.getContext('2d');
+    const radius = canvas.width / 2;
+    const toHex = (c) => ('0' + c.toString(16)).slice(-2);
+
+    function drawColorWheel() {
+        for(let y=0; y<canvas.height; y++) {
+            for(let x=0; x<canvas.width; x++) {
+                let dx = x - radius;
+                let dy = y - radius;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                if(dist <= radius) {
+                    let angle = Math.atan2(dy, dx);
+                    if(angle < 0) angle += 2*Math.PI;
+                    let hue = angle / (2*Math.PI);
+                    let sat = dist / radius;
+                    let rgb = hslToRgb(hue, sat, 0.5);
+                    ctx.fillStyle = 'rgb(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ')';
+                    ctx.fillRect(x, y, 1, 1);
+                }
+            }
+        }
+    }
+    // HSL转RGB，取L=0.5
+    function hslToRgb(h, s, l) {
+        let r, g, b;
+
+        if(s === 0){
+            r = g = b = l * 255; // achromatic
+        } else {
+            const hue2rgb = (p, q, t) => {
+                if(t < 0) t += 1;
+                if(t > 1) t -= 1;
+                if(t < 1/6) return p + (q - p)*6*t;
+                if(t < 1/2) return q;
+                if(t < 2/3) return p + (q - p)*(2/3 - t)*6;
+                return p;
+            }
+            let q = l < 0.5 ? l*(1 + s) : l + s - l*s;
+            let p = 2*l - q;
+            r = hue2rgb(p, q, h + 1/3)*255;
+            g = hue2rgb(p, q, h)*255;
+            b = hue2rgb(p, q, h - 1/3)*255;
+        }
+        return [Math.round(r), Math.round(g), Math.round(b)];
     }
 
-    .title {
-      font-size: 28px;
-      font-weight: 600;
-      color: #000;
-      margin-top: 20px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
+    drawColorWheel();
+
+    canvas.onclick = function(event){
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        const dx = x - radius;
+        const dy = y - radius;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if(dist <= radius){
+            let angle = Math.atan2(dy, dx);
+            if(angle < 0) angle += 2*Math.PI;
+            let hue = angle / (2*Math.PI);
+            let sat = dist / radius;
+            // 向streamlit传递色相和饱和度
+            const msg = JSON.stringify({hue: hue, sat: sat});
+            window.parent.postMessage({isStreamlitMessage:true,type:"color_wheel_click",data:msg}, "*");
+        }
     }
+    </script>
+    """
+    return html
 
-    .title::before {
-      content: "🎨";
-      font-size: 24px;
-    }
+# ======= 主状态 =======
+if "hue" not in st.session_state:
+    st.session_state.hue = 0.0
+if "sat" not in st.session_state:
+    st.session_state.sat = 0.0
+if "lum" not in st.session_state:
+    st.session_state.lum = 0.5
 
-    #colorWheel {
-      margin-top: 20px;
-    }
+# 监听JS消息
+msg = st.experimental_get_query_params().get("msg", [None])[0]
+if msg and "color_wheel_click" in msg:
+    import json
+    try:
+        data = json.loads(msg.split(":",1)[1])
+        st.session_state.hue = float(data["hue"])
+        st.session_state.sat = float(data["sat"])
+    except Exception:
+        pass
 
-    .slider-container {
-      margin: 20px auto;
-      text-align: center;
-    }
+# === 色轮嵌入 ===
+components.html(get_color_wheel_html(), height=270)
 
-    .slider-container span {
-      font-size: 18px;
-      color: #333;
-    }
+# 明度调整滑条
+lum = st.slider("明度调整", 0.0, 1.0, st.session_state.lum, 0.01)
+st.session_state.lum = lum
 
-    .slider-container .value {
-      color: #d58aff;
-      margin-left: 5px;
-    }
+# 颜色计算函数
+def hsl_to_rgb(h, s, l):
+    return tuple(round(i * 255) for i in colorsys.hls_to_rgb(h, l, s))
 
-    input[type="range"] {
-      width: 250px;
-      accent-color: #d58aff;
-    }
+def rgb_to_hex(rgb):
+    return '#{:02X}{:02X}{:02X}'.format(*rgb)
 
-    .section {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      align-items: flex-start;
-      gap: 30px;
-      max-width: 960px;
-      padding: 20px;
-    }
+def rgb_to_dec(rgb):
+    return rgb[0]*65536 + rgb[1]*256 + rgb[2]
 
-    .main-color {
-      width: 220px;
-      height: 220px;
-      border-radius: 20px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    }
+# 主色
+main_rgb = hsl_to_rgb(st.session_state.hue, st.session_state.sat, st.session_state.lum)
+main_hex = rgb_to_hex(main_rgb)
+main_dec = rgb_to_dec(main_rgb)
 
-    .info {
-      font-size: 16px;
-      color: #111;
-      margin-top: 20px;
-    }
+# 计算近似色（色相±10°、±20°）
+def calc_near_colors(h, s, l):
+    offsets = [-20/360, -10/360, 10/360]
+    colors = []
+    for off in offsets:
+        nh = (h + off) % 1.0
+        nrgb = hsl_to_rgb(nh, s, l)
+        nhex = rgb_to_hex(nrgb)
+        ndec = rgb_to_dec(nrgb)
+        colors.append({"rgb": nrgb, "hex": nhex, "dec": ndec})
+    return colors
 
-    .info code {
-      font-size: 16px;
-      background: #f2f2f2;
-      padding: 2px 6px;
-      border-radius: 4px;
-    }
+near_colors = calc_near_colors(st.session_state.hue, st.session_state.sat, st.session_state.lum)
 
-    .hint {
-      font-size: 14px;
-      color: #666;
-      margin-top: 6px;
-    }
+# === UI显示 ===
 
-    .similar-section {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
+st.markdown("### 选择颜色结果")
 
-    .similar-card {
-      width: 180px;
-      border-radius: 20px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-      overflow: hidden;
-    }
+col_main, col_info = st.columns([1, 2])
 
-    .color-block {
-      height: 80px;
-    }
+with col_main:
+    st.markdown("#### 主色")
+    st.markdown(f'<div style="width:100px; height:100px; background:{main_hex}; border-radius:10px; border: 1px solid #000;"></div>', unsafe_allow_html=True)
 
-    .color-info {
-      padding: 10px;
-      background: #fff;
-      font-size: 14px;
-      color: #222;
-    }
+with col_info:
+    st.markdown(f"HEX值: `{main_hex}`")
+    st.markdown(f"10进制值: `{main_dec}`")
 
-    .color-info code {
-      background: #f3f3f3;
-      padding: 2px 4px;
-      border-radius: 4px;
-    }
+st.markdown("### 近似色")
 
-    button {
-      margin-top: 8px;
-      padding: 4px 10px;
-      font-size: 12px;
-      border: 1px solid #aaa;
-      border-radius: 6px;
-      background: #f9f9f9;
-      cursor: pointer;
-    }
+cols = st.columns(3)
+for i, c in enumerate(near_colors):
+    with cols[i]:
+        st.markdown(f'<div style="width:80px; height:80px; background:{c["hex"]}; border-radius:10px; border: 1px solid #000; margin-bottom:6px;"></div>', unsafe_allow_html=True)
+        # 文字颜色自动判断浅色深色，这里简单黑色文字，且文字大小和位置适中不遮挡色块本身
+        st.markdown(f'HEX: `{c["hex"]}`')
+        st.markdown(f'Dec: `{c["dec"]}`')
 
-    @media (max-width: 768px) {
-      .section {
-        flex-direction: column;
-        align-items: center;
-      }
-    }
-  </style>
-</head>
-<body>
-  <div class="title">ColorSelector</div>
-  <div id="colorWheel"></div>
-
-  <div class="slider-container">
-    <span>明度调节</span>
-    <span class="value" id="brightLabel">当前100%</span><br/>
-    <input type="range" id="brightness" min="10" max="100" value="100"/>
-  </div>
-
-  <div class="section">
-    <div>
-      <div class="main-color" id="mainColor"></div>
-      <div class="info">
-        十进制: <code id="decValue"></code><br/>
-        HEX: <code id="hexValue"></code><br/>
-        RGB: <code id="rgbValue"></code><br/>
-        <div class="hint">点击色块复制十进制色值</div>
-      </div>
-    </div>
-
-    <div class="similar-section" id="similarColors"></div>
-  </div>
-
-  <script>
-    const colorPicker = new iro.ColorPicker("#colorWheel", {
-      width: 300,
-      layout: [
-        { component: iro.ui.Wheel }
-      ]
-    });
-
-    const brightnessSlider = document.getElementById("brightness");
-    const mainColorBox = document.getElementById("mainColor");
-    const hexValue = document.getElementById("hexValue");
-    const rgbValue = document.getElementById("rgbValue");
-    const decValue = document.getElementById("decValue");
-    const brightLabel = document.getElementById("brightLabel");
-    const similarColors = document.getElementById("similarColors");
-
-    function adjustBrightness(color, factor) {
-      const hsv = color.hsv;
-      hsv.v = Math.max(0, Math.min(100, hsv.v * factor));
-      const newColor = iro.Color({ h: hsv.h, s: hsv.s, v: hsv.v });
-      return newColor.hexString;
-    }
-
-    function updateUI() {
-      const color = colorPicker.color;
-      const factor = parseInt(brightnessSlider.value) / 100;
-      const adjHex = adjustBrightness(color, factor);
-      const rgb = color.rgb;
-      const dec = parseInt(adjHex.slice(1), 16);
-
-      mainColorBox.style.background = adjHex;
-      hexValue.textContent = adjHex.toUpperCase();
-      rgbValue.textContent = `(${rgb.r}, ${rgb.g}, ${rgb.b})`;
-      decValue.textContent = dec;
-
-      brightLabel.textContent = `当前${brightnessSlider.value}%`;
-
-      // 相似色
-      similarColors.innerHTML = '';
-      [-40, -20, 20].forEach(delta => {
-        let r = Math.min(255, Math.max(0, rgb.r + delta));
-        let g = Math.min(255, Math.max(0, rgb.g + delta));
-        let b = Math.min(255, Math.max(0, rgb.b + delta));
-        let hex = '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
-        let card = document.createElement('div');
-        card.className = 'similar-card';
-        card.innerHTML = `
-          <div class="color-block" style="background:${hex}"></div>
-          <div class="color-info">
-            HEX: <code>${hex}</code><br/>
-            RGB: <code>(${r}, ${g}, ${b})</code><br/>
-            <button onclick="colorPicker.color.hexString='${hex}'">Select Color</button>
-          </div>
-        `;
-        similarColors.appendChild(card);
-      });
-    }
-
-    colorPicker.on('color:change', updateUI);
-    brightnessSlider.addEventListener('input', updateUI);
-
-    mainColorBox.addEventListener('click', () => {
-      navigator.clipboard.writeText(decValue.textContent).then(() => {
-        alert('已复制十进制色值：' + decValue.textContent);
-      });
-    });
-
-    updateUI();
-  </script>
-</body>
-</html>
-""", height=960)
