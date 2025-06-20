@@ -53,14 +53,19 @@ with st.container():
     decimal_value = hex_to_decimal(adjusted_color)
     similar_colors = generate_similar_colors(adjusted_color)
 
-    # 主色显示区域，居中
+    # 主色显示区域，居中且矩形色块放大
     st.markdown(f"""
-    <div style="display:flex; justify-content:center; align-items:center; gap:15px; margin-top:15px;">
-        <div style="width:50px; height:50px; border-radius:8px; background:{adjusted_color}; box-shadow:0 0 5px rgba(0,0,0,0.15);"></div>
-        <div>
-            <div style="font-size:22px; font-weight:bold; color:#333;">{adjusted_color.upper()}</div>
-            <div style="color:#666; margin-top:3px; text-align:center;">十进制值：<code style="font-size:18px;">{decimal_value}</code></div>
+    <div style="display:flex; flex-direction: column; align-items:center; gap:10px; margin-top:15px;">
+        <div style="
+            width:150px; 
+            height:60px; 
+            border-radius:12px; 
+            background:{adjusted_color}; 
+            box-shadow:0 0 8px rgba(0,0,0,0.2);
+            ">
         </div>
+        <div style="font-size:22px; font-weight:bold; color:#333;">{adjusted_color.upper()}</div>
+        <div style="color:#666; font-size:18px; margin-top:3px;">十进制值：<code>{decimal_value}</code></div>
     </div>
     """, unsafe_allow_html=True)
 
